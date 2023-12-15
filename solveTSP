@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * 城市最短环路问题
  *
- * @author 曹基民
+ * @author dove-whispers
  * @date 2023/10/13
  */
 public class Dantzig {
@@ -25,6 +25,9 @@ public class Dantzig {
      */
     private static final List<Integer[]> ALL_PATH = new ArrayList<>(1000000);
 
+    /**
+     * 主函数
+     */
     public static void main(String[] args) throws IOException {
         Param param = new Param(30000, 0.999, 0.999, 100, 0.001);
         String fileName = "input/dantzig42_d.txt";
@@ -34,6 +37,9 @@ public class Dantzig {
         printBest();
     }
 
+    /**
+     * SA算法
+     */
     public static void simulatedAnnealing(Param param) {
         int distance;
         int newDistance;
@@ -59,6 +65,9 @@ public class Dantzig {
         }
     }
 
+    /**
+     * metropolis准则
+     */
     public static boolean metropolis(int distance, int newDistance, double t) {
         if (newDistance <= distance) {
             return true;
@@ -69,6 +78,9 @@ public class Dantzig {
         }
     }
 
+    /**
+     * 轮盘赌打乱路径
+     */
     public static void randomShufflePath() {
         SecureRandom random = new SecureRandom();
         int i = random.nextInt(42) + 1;
@@ -84,6 +96,9 @@ public class Dantzig {
         }
     }
 
+    /**
+     * 获取当前回路总距离(代价函数)
+     */
     public static int getDistance() {
         int distance = 0;
         for (int i = 1; i < path.length - 1; i++) {
@@ -122,6 +137,9 @@ public class Dantzig {
         path[j] = temp;
     }
 
+    /**
+     * 初始化路径
+     */
     public static void initPath() {
         path = new Integer[43];
         for (int i = 1; i < path.length; i++) {
@@ -129,6 +147,9 @@ public class Dantzig {
         }
     }
 
+    /**
+     * 读取文件中的城市距离
+     */
     public static void readDis(String fileName) throws IOException {
         dis = new Integer[43][43];
         List<String> lines = Files.readAllLines(Paths.get(fileName));
@@ -173,6 +194,9 @@ public class Dantzig {
         System.arraycopy(src, 1, dest, 1, path.length - 1);
     }
 
+    /**
+     * 增加计时
+     */
     public static void simulatedAnnealingWithTime(Param param) {
         try (Cost ignored = new Cost()) {
             simulatedAnnealing(param);
