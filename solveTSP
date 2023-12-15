@@ -1,0 +1,229 @@
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 城市最短环路问题
+ *
+ * @author 曹基民
+ * @date 2023/10/13
+ */
+public class Dantzig {
+    /**
+     * 城市距离矩阵
+     */
+    private static Integer[][] dis;
+    /**
+     * 当前路径
+     */
+    private static Integer[] path;
+    /**
+     * 所有通过蒙特卡洛准则的路径
+     */
+    private static final List<Integer[]> ALL_PATH = new ArrayList<>(1000000);
+
+    public static void main(String[] args) throws IOException {
+        Param param = new Param(30000, 0.999, 0.999, 100, 0.001);
+        String fileName = "input/dantzig42_d.txt";
+        readDis(fileName);
+        initPath();
+        simulatedAnnealingWithTime(param);
+        printBest();
+    }
+
+    public static void simulatedAnnealing(Param param) {
+        int distance;
+        int newDistance;
+        Integer[] formerPath = new Integer[43];
+        Integer[] addPath;
+        while (param.t > param.tf) {
+            distance = getDistance();
+            for (int i = 0; i < param.iter; i++) {
+                copyPath(formerPath, path);
+                randomShufflePath();
+                newDistance = getDistance();
+                if (metropolis(distance, newDistance, param.t)) {
+                    addPath = new Integer[43];
+                    copyPath(addPath, path);
+                    ALL_PATH.add(addPath);
+                    distance = newDistance;
+                } else {
+                    copyPath(path, formerPath);
+                }
+            }
+            param.t *= param.k;
+            param.k *= param.r;
+        }
+    }
+
+    public static boolean metropolis(int distance, int newDistance, double t) {
+        if (newDistance <= distance) {
+            return true;
+        } else {
+            double p = Math.exp((distance - newDistance) / t);
+            double i = new SecureRandom().nextDouble();
+            return i < p;
+        }
+    }
+
+    public static void randomShufflePath() {
+        SecureRandom random = new SecureRandom();
+        int i = random.nextInt(42) + 1;
+        int j = random.nextInt(42) + 1;
+        while (i == j) {
+            j = random.nextInt(42) + 1;
+        }
+        int k = random.nextInt(3);
+        switch (k) {
+            case 0 -> randomSwapPath(i, j);
+            case 1 -> randomReversePath(i, j);
+            case 2 -> randomInsertPath(i, j);
+        }
+    }
+
+    public static int getDistance() {
+        int distance = 0;
+        for (int i = 1; i < path.length - 1; i++) {
+            distance += dis[path[i]][path[i + 1]];
+        }
+        distance += dis[path[path.length - 1]][path[1]];
+        return distance;
+    }
+
+    public static void randomSwapPath(int i, int j) {
+        swapPath(i, j);
+    }
+
+    public static void randomReversePath(int i, int j) {
+        int m = Math.max(i, j);
+        int n = Math.min(i, j);
+        int k = (m - n + 1) / 2;
+        while (k-- > 0) {
+            swapPath(n++, m--);
+        }
+    }
+
+    public static void randomInsertPath(int i, int j) {
+        int m = Math.max(i, j);
+        int n = Math.min(i, j);
+        int t = path[n];
+        for (int k = n; k < m; k++) {
+            path[k] = path[k + 1];
+        }
+        path[m] = t;
+    }
+
+    public static void swapPath(int i, int j) {
+        Integer temp = path[i];
+        path[i] = path[j];
+        path[j] = temp;
+    }
+
+    public static void initPath() {
+        path = new Integer[43];
+        for (int i = 1; i < path.length; i++) {
+            path[i] = i;
+        }
+    }
+
+    public static void readDis(String fileName) throws IOException {
+        dis = new Integer[43][43];
+        List<String> lines = Files.readAllLines(Paths.get(fileName));
+        for (int i = 0; i < lines.size(); i++) {
+            String[] line = lines.get(i).split("\\s+");
+            for (int j = 1; j < line.length; j++) {
+                dis[i + 1][j] = Integer.parseInt(line[j]);
+            }
+        }
+    }
+
+    private static void printBest() {
+        System.out.println("最短回路长度为:" + getBestPath());
+        System.out.println("最短回路为:");
+        printPath();
+    }
+
+    public static int getBestPath() {
+        int shortestDistance = Integer.MAX_VALUE;
+        Integer[] shortestPath = new Integer[43];
+        int distance;
+        for (Integer[] way : ALL_PATH) {
+            copyPath(path, way);
+            distance = getDistance();
+            if (shortestDistance >= distance) {
+                shortestDistance = distance;
+                shortestPath = way;
+            }
+        }
+        copyPath(path, shortestPath);
+        return shortestDistance;
+    }
+
+    private static void printPath() {
+        for (int i = 1; i < path.length; i++) {
+            System.out.print(path[i] + " -> ");
+        }
+        System.out.println(path[1]);
+    }
+
+    public static void copyPath(Integer[] dest, Integer[] src) {
+        System.arraycopy(src, 1, dest, 1, path.length - 1);
+    }
+
+    public static void simulatedAnnealingWithTime(Param param) {
+        try (Cost ignored = new Cost()) {
+            simulatedAnnealing(param);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+class Param {
+    /**
+     * 马尔可夫链长度
+     */
+    public int iter;
+    /**
+     * 衰减参数
+     */
+    public double k;
+    /**
+     * 衰减参数下降参数
+     */
+    public double r;
+    /**
+     * 当前温度
+     */
+    public double t;
+    /**
+     * 终止温度
+     */
+    public double tf;
+
+    public Param() {}
+
+    public Param(int iter, double k, double r, double t, double tf) {
+        this.iter = iter;
+        this.k = k;
+        this.r = r;
+        this.t = t;
+        this.tf = tf;
+    }
+}
+
+class Cost implements AutoCloseable {
+    private final long START_TIME;
+
+    public Cost() {
+        START_TIME = System.currentTimeMillis();
+    }
+
+    @Override
+    public void close() {
+        System.out.println("总计消耗时间: " + (System.currentTimeMillis() - START_TIME) * 1.0 / 1000 + " s");
+    }
+}
